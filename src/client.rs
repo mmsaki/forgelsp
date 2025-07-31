@@ -6,7 +6,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut child = Command::new("cargo")
         .arg("run")
         .arg("--bin")
-        .arg("server")
+        .arg("lsp")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()?;
