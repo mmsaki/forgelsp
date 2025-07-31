@@ -1,9 +1,12 @@
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tracing::info;
+
+pub struct ForgeLspRunner;
 
 #[derive(Debug)]
-struct Backend {
+struct ForgeLspServer {
     client: Client,
 }
 
@@ -12,7 +15,8 @@ struct TextDocumentItem<'a> {
     text: &'a str,
     version: Option<i32>,
 }
-impl Backend {
+
+impl ForgeLspServer {
     async fn on_change<'a>(&self, params: TextDocumentItem<'a>) {
         // TODO: Implement on change
         let _ = params.text;
@@ -24,14 +28,25 @@ impl Backend {
 }
 
 #[tower_lsp::async_trait]
-impl LanguageServer for Backend {
+impl LanguageServer for ForgeLspServer {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
                 name: "forge lsp".to_string(),
-                version: Some("v0.0.1".to_string()),
+                version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
+
             capabilities: ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
+                workspace: Some(WorkspaceServerCapabilities {
+                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                        supported: Some(true),
+                        change_notifications: Some(OneOf::Left(true)),
+                    }),
+                    file_operations: None,
+                }),
                 ..ServerCapabilities::default()
             },
         })
@@ -127,11 +142,23 @@ impl LanguageServer for Backend {
     }
 }
 
+impl ForgeLspRunner {
+    pub async fn run() -> Result<()> {
+        info!("Starting Foundry LSP server...");
+
+        let stdin = tokio::io::stdin();
+        let stdout = tokio::io::stdout();
+        let (service, socket) = LspService::new(|client| ForgeLspServer { client });
+
+        Server::new(stdin, stdout, socket).serve(service).await;
+
+        info!("Foundry LSP server stopped");
+
+        Ok(())
+    }
+}
 
 #[tokio::main]
 async fn main() {
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(|client| Backend { client });
-    Server::new(stdin, stdout, socket).serve(service).await;
+    let _ = ForgeLspRunner::run().await;
 }
