@@ -33,7 +33,7 @@ impl ForgeLspServer {
         }
 
         let file_path = params.uri.path();
-        
+
         // Convert absolute path to relative path for forge commands
         let relative_path = if file_path.starts_with('/') {
             // Try to make the path relative to current working directory
@@ -50,11 +50,14 @@ impl ForgeLspServer {
         } else {
             file_path.to_string()
         };
-        
+
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("Running diagnostics for: {} (relative: {})", file_path, relative_path),
+                format!(
+                    "Running diagnostics for: {} (relative: {})",
+                    file_path, relative_path
+                ),
             )
             .await;
 
@@ -112,7 +115,7 @@ impl ForgeLspServer {
 
         // Always publish diagnostics (even if empty) to clear previous ones
         let diagnostics_count = all_diagnostics.len();
-        
+
         // Log detailed diagnostic information for debugging
         for (i, diag) in all_diagnostics.iter().enumerate() {
             self.client
@@ -130,7 +133,7 @@ impl ForgeLspServer {
                 )
                 .await;
         }
-        
+
         self.client
             .publish_diagnostics(params.uri.clone(), all_diagnostics, params.version)
             .await;
@@ -182,7 +185,7 @@ impl LanguageServer for ForgeLspServer {
         self.client
             .log_message(MessageType::INFO, "file opened - running diagnostics")
             .await;
-        
+
         self.on_change(TextDocumentItem {
             uri: params.text_document.uri,
             text: &params.text_document.text,
@@ -193,9 +196,12 @@ impl LanguageServer for ForgeLspServer {
 
     async fn did_change(&self, _params: DidChangeTextDocumentParams) {
         self.client
-            .log_message(MessageType::INFO, "file changed - diagnostics will run on save")
+            .log_message(
+                MessageType::INFO,
+                "file changed - diagnostics will run on save",
+            )
             .await;
-        
+
         // Don't run diagnostics on change - only on save
         // This prevents interrupting the user while typing
     }
@@ -471,24 +477,25 @@ mod tests {
         println!("   - Fresh diagnostics on each save: verified ✅");
     }
 
-
-
     #[tokio::test]
     async fn test_lsp_server_with_file_uri() {
         println!("🔍 Testing LSP server with file URI...");
-        
+
         // Create a mock client (we can't easily test the full LSP flow, but we can test the on_change method)
         let current_dir = std::env::current_dir().unwrap();
-        let file_uri = format!("file://{}/contracts/CompilationError.sol", current_dir.display());
-        
+        let file_uri = format!(
+            "file://{}/contracts/CompilationError.sol",
+            current_dir.display()
+        );
+
         println!("   📁 Testing with URI: {}", file_uri);
-        
+
         // Parse the URI
         let uri = Url::parse(&file_uri).expect("Should parse URI");
         let file_path = uri.path();
-        
+
         println!("   📂 Extracted path: {}", file_path);
-        
+
         // Test the path conversion logic (same as in on_change)
         let relative_path = if file_path.starts_with('/') {
             match std::env::current_dir() {
@@ -504,37 +511,42 @@ mod tests {
         } else {
             file_path.to_string()
         };
-        
+
         println!("   🔄 Converted to relative path: {}", relative_path);
-        
+
         // Test diagnostics with the converted path
         let diagnostics = utils::run_forge_compile_and_get_diagnostics(&relative_path).await;
-        assert!(diagnostics.is_ok(), "Diagnostics should work with converted path");
-        
+        assert!(
+            diagnostics.is_ok(),
+            "Diagnostics should work with converted path"
+        );
+
         let diag_vec = diagnostics.unwrap();
         println!("   📊 Found {} diagnostics", diag_vec.len());
         assert!(!diag_vec.is_empty(), "Should find compilation errors");
-        
-        let has_errors = diag_vec.iter().any(|d| d.severity == Some(DiagnosticSeverity::ERROR));
+
+        let has_errors = diag_vec
+            .iter()
+            .any(|d| d.severity == Some(DiagnosticSeverity::ERROR));
         assert!(has_errors, "Should have error diagnostics");
-        
+
         println!("✅ LSP server file URI handling works correctly!");
     }
 
     #[tokio::test]
     async fn test_lsp_server_empty_file_diagnostics() {
         println!("🔍 Testing LSP server with empty Solidity file...");
-        
+
         // Test with empty file URI
         let current_dir = std::env::current_dir().unwrap();
         let file_uri = format!("file://{}/contracts/Empty.sol", current_dir.display());
-        
+
         println!("   📁 Testing with URI: {}", file_uri);
-        
+
         // Parse the URI and convert path
         let uri = Url::parse(&file_uri).expect("Should parse URI");
         let file_path = uri.path();
-        
+
         let relative_path = if file_path.starts_with('/') {
             match std::env::current_dir() {
                 Ok(cwd) => {
@@ -549,24 +561,31 @@ mod tests {
         } else {
             file_path.to_string()
         };
-        
+
         println!("   🔄 Converted to relative path: {}", relative_path);
-        
+
         // Test diagnostics with the converted path
         let diagnostics = utils::run_forge_compile_and_get_diagnostics(&relative_path).await;
-        assert!(diagnostics.is_ok(), "Diagnostics should work with empty file");
-        
+        assert!(
+            diagnostics.is_ok(),
+            "Diagnostics should work with empty file"
+        );
+
         let diag_vec = diagnostics.unwrap();
         println!("   📊 Found {} diagnostics", diag_vec.len());
         assert!(!diag_vec.is_empty(), "Should find SPDX and pragma warnings");
-        
+
         // Check for both expected warnings
-        let has_spdx = diag_vec.iter().any(|d| d.message.contains("SPDX license identifier"));
-        let has_pragma = diag_vec.iter().any(|d| d.message.contains("compiler version"));
-        
+        let has_spdx = diag_vec
+            .iter()
+            .any(|d| d.message.contains("SPDX license identifier"));
+        let has_pragma = diag_vec
+            .iter()
+            .any(|d| d.message.contains("compiler version"));
+
         assert!(has_spdx, "Should have SPDX warning");
         assert!(has_pragma, "Should have pragma warning");
-        
+
         println!("✅ LSP server empty file diagnostics work correctly!");
         println!("   - SPDX license warning: ✅");
         println!("   - Pragma version warning: ✅");
