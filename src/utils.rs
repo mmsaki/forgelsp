@@ -80,8 +80,8 @@ pub struct ForgeCompileError {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ForgeSourceLocation {
     file: String,
-    start: i32,  // Changed to i32 to handle -1 values
-    end: i32,    // Changed to i32 to handle -1 values
+    start: i32, // Changed to i32 to handle -1 values
+    end: i32,   // Changed to i32 to handle -1 values
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -170,7 +170,7 @@ pub async fn run_forge_compile_and_get_diagnostics(
                     code: None,
                     code_description: None,
                     source: Some("forge-compile".to_string()),
-                    message:format!("[forge compile] {}", error_str),
+                    message: format!("[forge compile] {}", error_str),
                     related_information: None,
                     tags: None,
                     data: None,
@@ -267,7 +267,9 @@ pub fn forge_compile_to_lsp_diagnostics(
                         error.error_code.clone(),
                     )),
                     code_description: None,
-                    source: Some("forge-compile".to_string()), message: format!("[forge compile] {}", error.message),related_information: None,
+                    source: Some("forge-compile".to_string()),
+                    message: format!("[forge compile] {}", error.message),
+                    related_information: None,
                     tags: None,
                     data: None,
                 };
@@ -281,26 +283,26 @@ pub fn forge_compile_to_lsp_diagnostics(
 
 fn byte_to_line_col(file_path: &str, byte_pos: i32) -> (u32, u32) {
     use std::fs;
-    
+
     // Handle special case where byte_pos is -1 (indicates whole file)
     if byte_pos == -1 {
         return (0, 0); // Position at start of file for whole-file diagnostics
     }
-    
+
     // Convert to usize for array indexing
     let byte_pos = byte_pos as usize;
-    
+
     match fs::read_to_string(file_path) {
         Ok(content) => {
             let bytes = content.as_bytes();
             let mut line = 0u32;
             let mut col = 0u32;
-            
+
             for (i, &byte) in bytes.iter().enumerate() {
                 if i >= byte_pos {
                     break;
                 }
-                
+
                 if byte == b'\n' {
                     line += 1;
                     col = 0;
@@ -308,7 +310,7 @@ fn byte_to_line_col(file_path: &str, byte_pos: i32) -> (u32, u32) {
                     col += 1;
                 }
             }
-            
+
             (line, col)
         }
         Err(_) => (0, 0), // Fallback if file can't be read
@@ -375,7 +377,7 @@ impl Compiler for ForgeCompiler {
                     anyhow::bail!("{}", serde_json::to_string(&json_output)?);
                 }
             }
-}
+        }
         Ok(json_output)
     }
 }
@@ -446,10 +448,7 @@ mod tests {
         // Check the first diagnostic
         let first_diag = &diagnostics[0];
         assert_eq!(first_diag.source, Some("forge-lint".to_string()));
-        assert_eq!(
-            first_diag.message,
-            "function names should use mixedCase"
-        );
+        assert_eq!(first_diag.message, "function names should use mixedCase");
         assert_eq!(
             first_diag.severity,
             Some(tower_lsp::lsp_types::DiagnosticSeverity::INFORMATION)
@@ -508,10 +507,7 @@ mod tests {
             first_diag.severity,
             Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)
         );
-        assert_eq!(
-            first_diag.message,
-            "Expected identifier but got ';'"
-        );
+        assert_eq!(first_diag.message, "Expected identifier but got ';'");
         assert_eq!(
             first_diag.code,
             Some(tower_lsp::lsp_types::NumberOrString::String(
@@ -561,10 +557,7 @@ mod tests {
             diag.severity,
             Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)
         );
-        assert_eq!(
-            diag.message,
-            "Expected identifier but got ';'"
-        );
+        assert_eq!(diag.message, "Expected identifier but got ';'");
         assert_eq!(
             diag.code,
             Some(tower_lsp::lsp_types::NumberOrString::String(
@@ -600,19 +593,15 @@ mod tests {
             Some(tower_lsp::lsp_types::DiagnosticSeverity::WARNING)
         );
         assert!(
-            warning_diag
-                .message
-                .contains("Unused function parameter")
-                || warning_diag
-                    .message
-                    .contains("Unused local variable")
+            warning_diag.message.contains("Unused function parameter")
+                || warning_diag.message.contains("Unused local variable")
         );
     }
 
     #[tokio::test]
     async fn test_empty_file_diagnostics() {
         println!("Testing empty Solidity file diagnostics...");
-        
+
         // Test that empty files generate SPDX and pragma warnings
         let diagnostics = run_forge_compile_and_get_diagnostics("contracts/Empty.sol").await;
 
@@ -632,46 +621,54 @@ mod tests {
 
         // Check for SPDX warning
         let has_spdx_warning = diag_vec.iter().any(|d| {
-            d.message.contains("SPDX license identifier not provided") &&
-            d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::WARNING) &&
-            d.source == Some("forge-compile".to_string())
+            d.message.contains("SPDX license identifier not provided")
+                && d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::WARNING)
+                && d.source == Some("forge-compile".to_string())
         });
-        assert!(has_spdx_warning, "Should have SPDX license identifier warning");
+        assert!(
+            has_spdx_warning,
+            "Should have SPDX license identifier warning"
+        );
 
         // Check for pragma warning
         let has_pragma_warning = diag_vec.iter().any(|d| {
-            d.message.contains("does not specify required compiler version") &&
-            d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::WARNING) &&
-            d.source == Some("forge-compile".to_string())
+            d.message
+                .contains("does not specify required compiler version")
+                && d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::WARNING)
+                && d.source == Some("forge-compile".to_string())
         });
         assert!(has_pragma_warning, "Should have pragma version warning");
 
         println!("✅ Empty file diagnostics working correctly:");
         for (i, diag) in diag_vec.iter().enumerate() {
-            println!("   {}. [{}] {}", 
-                i + 1, 
+            println!(
+                "   {}. [{}] {}",
+                i + 1,
                 diag.source.as_ref().unwrap_or(&"unknown".to_string()),
                 diag.message
             );
             println!("      Code: {:?}, Severity: {:?}", diag.code, diag.severity);
-            println!("      Position: line {}, col {}", diag.range.start.line, diag.range.start.character);
+            println!(
+                "      Position: line {}, col {}",
+                diag.range.start.line, diag.range.start.character
+            );
         }
     }
 
     #[tokio::test]
     async fn test_diagnostic_lsp_compliance() {
         println!("🔍 Testing LSP Diagnostic compliance...");
-        
+
         // Test with different types of files to get various diagnostics
         let test_cases = vec![
             ("contracts/CompilationError.sol", "compilation errors"),
             ("contracts/A.sol", "compilation warnings"),
             ("contracts/Empty.sol", "empty file warnings"),
         ];
-        
+
         for (file_path, description) in test_cases {
             println!("\n📁 Testing {} ({})", file_path, description);
-            
+
             // Get compilation diagnostics
             let compile_result = run_forge_compile_and_get_diagnostics(file_path).await;
             if let Ok(compile_diags) = compile_result {
@@ -679,64 +676,96 @@ mod tests {
                 for (i, diag) in compile_diags.iter().enumerate() {
                     println!("   {}. LSP Diagnostic Structure:", i + 1);
                     println!("      ✅ range: {:?}", diag.range);
-                    println!("      ✅ severity: {:?} (LSP values: Error=1, Warning=2, Info=3, Hint=4)", diag.severity);
+                    println!(
+                        "      ✅ severity: {:?} (LSP values: Error=1, Warning=2, Info=3, Hint=4)",
+                        diag.severity
+                    );
                     println!("      ✅ code: {:?}", diag.code);
                     println!("      ✅ source: {:?}", diag.source);
                     println!("      ✅ message: \"{}\"", diag.message);
                     println!("      ✅ tags: {:?}", diag.tags);
-                    println!("      ✅ related_information: {:?}", diag.related_information);
+                    println!(
+                        "      ✅ related_information: {:?}",
+                        diag.related_information
+                    );
                     println!("      ✅ data: {:?}", diag.data);
-                    
+
                     // Verify required fields according to LSP spec
-                    assert!(diag.range.start.line >= 0, "Range start line should be >= 0");
-                    assert!(diag.range.start.character >= 0, "Range start character should be >= 0");
+                    assert!(
+                        diag.range.start.line >= 0,
+                        "Range start line should be >= 0"
+                    );
+                    assert!(
+                        diag.range.start.character >= 0,
+                        "Range start character should be >= 0"
+                    );
                     assert!(diag.range.end.line >= 0, "Range end line should be >= 0");
-                    assert!(diag.range.end.character >= 0, "Range end character should be >= 0");
+                    assert!(
+                        diag.range.end.character >= 0,
+                        "Range end character should be >= 0"
+                    );
                     assert!(!diag.message.is_empty(), "Message should not be empty");
-                    
+
                     // Check severity values match LSP spec
                     if let Some(severity) = diag.severity {
                         match severity {
                             DiagnosticSeverity::ERROR => println!("      ✅ Severity: Error (1)"),
-                            DiagnosticSeverity::WARNING => println!("      ✅ Severity: Warning (2)"),
-                            DiagnosticSeverity::INFORMATION => println!("      ✅ Severity: Information (3)"),
+                            DiagnosticSeverity::WARNING => {
+                                println!("      ✅ Severity: Warning (2)")
+                            }
+                            DiagnosticSeverity::INFORMATION => {
+                                println!("      ✅ Severity: Information (3)")
+                            }
                             DiagnosticSeverity::HINT => println!("      ✅ Severity: Hint (4)"),
                             _ => println!("      ⚠️  Severity: Unknown ({:?})", severity),
                         }
                     }
                 }
             }
-            
+
             // Get linting diagnostics (if applicable)
             if file_path != "contracts/Empty.sol" {
                 let lint_result = run_forge_lint_and_get_diagnostics(file_path).await;
                 if let Ok(lint_diags) = lint_result {
                     println!("   📊 Linting diagnostics: {}", lint_diags.len());
-                    for (i, diag) in lint_diags.iter().take(2).enumerate() { // Show first 2
+                    for (i, diag) in lint_diags.iter().take(2).enumerate() {
+                        // Show first 2
                         println!("   Lint {}. Message: \"{}\"", i + 1, diag.message);
-                        println!("           Severity: {:?}, Code: {:?}", diag.severity, diag.code);
+                        println!(
+                            "           Severity: {:?}, Code: {:?}",
+                            diag.severity, diag.code
+                        );
                     }
                 }
             }
         }
-        
+
         println!("\n✅ LSP Diagnostic compliance check completed!");
     }
 
     #[tokio::test]
     async fn test_comprehensive_diagnostic_capture() {
         println!("🔍 Testing comprehensive diagnostic capture...");
-        
+
         // Test that we capture ALL types of diagnostics that forge can produce
         let test_cases = vec![
-            ("contracts/CompilationError.sol", vec!["Expected identifier"]),
-            ("contracts/A.sol", vec!["Unused function parameter", "Unused local variable"]),
-            ("contracts/Empty.sol", vec!["SPDX license identifier", "compiler version"]),
+            (
+                "contracts/CompilationError.sol",
+                vec!["Expected identifier"],
+            ),
+            (
+                "contracts/A.sol",
+                vec!["Unused function parameter", "Unused local variable"],
+            ),
+            (
+                "contracts/Empty.sol",
+                vec!["SPDX license identifier", "compiler version"],
+            ),
         ];
-        
+
         for (file_path, expected_keywords) in test_cases {
             println!("\n📁 Testing comprehensive capture for: {}", file_path);
-            
+
             // Run forge compile directly to see what it produces
             println!("   🔧 Running forge compile directly...");
             let output = Command::new("forge")
@@ -747,38 +776,45 @@ mod tests {
                 .output()
                 .await
                 .expect("Should run forge compile");
-            
+
             let stdout_str = String::from_utf8_lossy(&output.stdout);
-            println!("   📊 Forge compile JSON length: {} bytes", stdout_str.len());
-            
+            println!(
+                "   📊 Forge compile JSON length: {} bytes",
+                stdout_str.len()
+            );
+
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout_str) {
                 if let Some(errors) = json.get("errors") {
                     if let Some(error_array) = errors.as_array() {
                         println!("   📊 Forge reports {} errors/warnings", error_array.len());
                         for (i, error) in error_array.iter().enumerate() {
                             if let Some(message) = error.get("message") {
-                                println!("      {}. {}", i + 1, message.as_str().unwrap_or("Unknown"));
+                                println!(
+                                    "      {}. {}",
+                                    i + 1,
+                                    message.as_str().unwrap_or("Unknown")
+                                );
                             }
                         }
                     }
                 }
             }
-            
+
             // Now test our diagnostic capture
             println!("   🔧 Testing our diagnostic capture...");
             let diagnostics = run_forge_compile_and_get_diagnostics(file_path).await;
-            
+
             match diagnostics {
                 Ok(diag_vec) => {
-                    println!("   ✅ Captured {} diagnostics", diag_vec.len());
-                    
+                    println!("     Captured {} diagnostics", diag_vec.len());
+
                     // Check that we captured diagnostics for expected keywords
                     for keyword in expected_keywords {
                         let found = diag_vec.iter().any(|d| d.message.contains(keyword));
                         if found {
-                            println!("   ✅ Found diagnostic containing: '{}'", keyword);
+                            println!("     Found diagnostic containing: '{}'", keyword);
                         } else {
-                            println!("   ❌ Missing diagnostic containing: '{}'", keyword);
+                            println!("     Missing diagnostic containing: '{}'", keyword);
                             // Print all messages to help debug
                             for (i, diag) in diag_vec.iter().enumerate() {
                                 println!("      {}: {}", i + 1, diag.message);
@@ -788,12 +824,12 @@ mod tests {
                     }
                 }
                 Err(e) => {
-                    println!("   ❌ Failed to capture diagnostics: {}", e);
+                    println!("     Failed to capture diagnostics: {}", e);
                     panic!("Should capture diagnostics for {}", file_path);
                 }
             }
         }
-        
-        println!("\n✅ Comprehensive diagnostic capture test completed!");
+
+        println!("\n Complete!");
     }
 }
