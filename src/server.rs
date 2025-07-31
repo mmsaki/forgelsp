@@ -25,7 +25,6 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
@@ -33,11 +32,9 @@ impl LanguageServer for Backend {
                 version: Some("v0.0.1".to_string()),
             }),
             capabilities: ServerCapabilities {
-
                 ..ServerCapabilities::default()
-            }
+            },
         })
-
     }
 
     async fn initialized(&self, _: InitializedParams) {
@@ -47,12 +44,16 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        self.client.log_message(MessageType::INFO, "lsp server shutting down").await;
+        self.client
+            .log_message(MessageType::INFO, "lsp server shutting down")
+            .await;
         Ok(())
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.client.log_message(MessageType::INFO, "file opened").await;
+        self.client
+            .log_message(MessageType::INFO, "file opened")
+            .await;
         self.on_change(TextDocumentItem {
             uri: params.text_document.uri,
             text: &params.text_document.text,
@@ -62,17 +63,21 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.client.log_message(MessageType::INFO, "file changed").await;
+        self.client
+            .log_message(MessageType::INFO, "file changed")
+            .await;
         self.on_change(TextDocumentItem {
             uri: params.text_document.uri,
             text: &params.content_changes[0].text,
             version: Some(params.text_document.version),
-
-        }).await;
+        })
+        .await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        self.client.log_message(MessageType::INFO, "file saved").await;
+        self.client
+            .log_message(MessageType::INFO, "file saved")
+            .await;
         if let Some(text) = params.text {
             let item = TextDocumentItem {
                 uri: params.text_document.uri,
@@ -82,27 +87,36 @@ impl LanguageServer for Backend {
             self.on_change(item).await;
             _ = self.client.semantic_tokens_refresh().await;
         }
-
     }
 
     async fn did_close(&self, _: DidCloseTextDocumentParams) {
-        self.client.log_message(MessageType::INFO, "file closed").await;
+        self.client
+            .log_message(MessageType::INFO, "file closed")
+            .await;
     }
-    
+
     async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {
-        self.client.log_message(MessageType::INFO, "configuration changed!").await;
+        self.client
+            .log_message(MessageType::INFO, "configuration changed!")
+            .await;
     }
 
     async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
-        self.client.log_message(MessageType::INFO, "workspace folders changed!").await;
+        self.client
+            .log_message(MessageType::INFO, "workspace folders changed!")
+            .await;
     }
 
     async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
-        self.client.log_message(MessageType::INFO, "watched files have changed!").await;
+        self.client
+            .log_message(MessageType::INFO, "watched files have changed!")
+            .await;
     }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> Result<Option<serde_json::Value>> {
-        self.client.log_message(MessageType::INFO, "command executed!").await;
+        self.client
+            .log_message(MessageType::INFO, "command executed!")
+            .await;
 
         match self.client.apply_edit(WorkspaceEdit::default()).await {
             Ok(res) if res.applied => self.client.log_message(MessageType::INFO, "applied").await,
