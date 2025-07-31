@@ -27,7 +27,17 @@ impl Backend {
 impl LanguageServer for Backend {
 
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult::default())
+        Ok(InitializeResult {
+            server_info: Some(ServerInfo {
+                name: "forge lsp".to_string(),
+                version: Some("v0.0.1".to_string()),
+            }),
+            capabilities: ServerCapabilities {
+
+                ..ServerCapabilities::default()
+            }
+        })
+
     }
 
     async fn initialized(&self, _: InitializedParams) {
