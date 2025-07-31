@@ -1,3 +1,5 @@
+pub mod utils;
+
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
