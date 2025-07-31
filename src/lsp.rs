@@ -160,19 +160,6 @@ impl LanguageServer for ForgeLspServer {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
-                diagnostic_provider: Some(DiagnosticServerCapabilities::Options(DiagnosticOptions {
-                    identifier: Some("forge-lsp".to_string()),
-                    inter_file_dependencies: false,
-                    workspace_diagnostics: false,
-                    work_done_progress_options: WorkDoneProgressOptions::default(),
-                })),
-                workspace: Some(WorkspaceServerCapabilities {
-                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-                        supported: Some(true),
-                        change_notifications: Some(OneOf::Left(true)),
-                    }),
-                    file_operations: None,
-                }),
                 ..ServerCapabilities::default()
             },
         })
@@ -193,8 +180,9 @@ impl LanguageServer for ForgeLspServer {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.client
-            .log_message(MessageType::INFO, "file opened")
+            .log_message(MessageType::INFO, "file opened - running diagnostics")
             .await;
+        
         self.on_change(TextDocumentItem {
             uri: params.text_document.uri,
             text: &params.text_document.text,
@@ -203,21 +191,18 @@ impl LanguageServer for ForgeLspServer {
         .await
     }
 
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+    async fn did_change(&self, _params: DidChangeTextDocumentParams) {
         self.client
-            .log_message(MessageType::INFO, "file changed")
+            .log_message(MessageType::INFO, "file changed - diagnostics will run on save")
             .await;
-        self.on_change(TextDocumentItem {
-            uri: params.text_document.uri,
-            text: &params.content_changes[0].text,
-            version: Some(params.text_document.version),
-        })
-        .await;
+        
+        // Don't run diagnostics on change - only on save
+        // This prevents interrupting the user while typing
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         self.client
-            .log_message(MessageType::INFO, "file saved")
+            .log_message(MessageType::INFO, "file saved - running diagnostics")
             .await;
 
         // Always run diagnostics on save, regardless of whether text is provided
